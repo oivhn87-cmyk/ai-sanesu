@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI画像・動画生成ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        /* タブのスタイル */
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            color: #666;
+            font-weight: bold;
+        }
+        .tab-btn.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button.action-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button.action-btn:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        /* ダウンロードボタン等のスタイル */
+        .download-btn {
+            background-color: #28a745;
+            margin-top: 15px;
+            display: none;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .result-container {
+            margin-top: 20px;
+            min-height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-direction: column;
+            padding: 10px;
+        }
+        #result-image {
+            max-width: 100%;
+            height: auto;
+            display: none;
+        }
+        #result-video {
+            max-width: 100%;
+            height: auto;
+            display: none;
+        }
+        .loading {
+            display: none;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>AI画像・動画生成ツール</h1>
+
+    <!-- タブ切り替えボタン -->
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="switchTab('image')">AI画像生成</button>
+        <button class="tab-btn" onclick="switchTab('video')">AI動画生成</button>
+    </div>
+
+    <!-- 画像生成タブの中身 -->
+    <div id="image-tab" class="tab-content active">
+        <p>生成したい画像の説明（英語推奨）を入力してください[cite: 1]</p>
+        <div class="input-group">
+            <input type="text" id="prompt-image" placeholder="例: A cute cat in space, 8k" value="A futuristic city at sunset, highly detailed">
+            <button class="action-btn" id="generate-btn-img" onclick="generateImage()">生成</button>
+        </div>
+
+        <div class="result-container">
+            <div id="loading-image" class="loading">画像を生成中...（数秒かかります）[cite: 1]</div>
+            <img id="result-image" alt="生成された画像" crossorigin="anonymous">
+        </div>
+
+        <button id="download-btn-img" class="download-btn action-btn" onclick="downloadFile('image')">画像を保存する</button>
+    </div>
+
+    <!-- 動画生成タブの中身 -->
+    <div id="video-tab" class="tab-content">
+        <p>生成したい動画の説明（英語推奨）を入力してください</p>
+        <div class="input-group">
+            <input type="text" id="prompt-video" placeholder="例: Cinematic drone shot of a flying car" value="Cinematic drone shot of a flying car over neon city">
+            <button class="action-btn" id="generate-btn-vid" onclick="generateVideo()">動画生成</button>
+        </div>
+
+        <div class="result-container">
+            <div id="loading-video" class="loading">動画を生成中...（少し時間がかかります）</div>
+            <video id="result-video" controls autoplay loop muted></video>
+        </div>
+
+        <button id="download-btn-vid" class="download-btn action-btn" onclick="downloadFile('video')">動画を保存する</button>
+    </div>
+
+    <script>
+        // タブ切り替え機能
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-btn');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            if (tabName === 'image') {
+                document.getElementById('image-tab').classList.add('active');
+                buttons[0].classList.add('active');
+            } else if (tabName === 'video') {
+                document.getElementById('video-tab').classList.add('active');
+                buttons[1].classList.add('active');
+            }
+        }
+
+        // 画像生成機能[cite: 1]
+        function generateImage() {
+            const promptInput = document.getElementById('prompt-image');
+            const promptText = promptInput.value.trim();
+            const generateBtn = document.getElementById('generate-btn-img');
+            const downloadBtn = document.getElementById('download-btn-img');
+            const loadingText = document.getElementById('loading-image');
+            const resultImg = document.getElementById('result-image');
+
+            if (!promptText) {
+                alert('プロンプトを入力してください。');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            resultImg.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            loadingText.style.display = 'block';
+
+            const encodedPrompt = encodeURIComponent(promptText);
+            const randomSeed = Math.floor(Math.random() * 1000000);
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&nologo=true&seed=${randomSeed}`;
+
+            resultImg.onload = function() {
+                loadingText.style.display = 'none';
+                resultImg.style.display = 'block';
+                downloadBtn.style.display = 'inline-block';
+                generateBtn.disabled = false;
+            };
+
+            resultImg.onerror = function() {
+                loadingText.style.display = 'none';
+                alert('画像の生成に失敗しました。もう一度お試しください。');
+                generateBtn.disabled = false;
+            };
+
+            resultImg.src = imageUrl;
+        }
+
+        // 動画生成機能（アプリ内で完結）
+        function generateVideo() {
+            const promptInput = document.getElementById('prompt-video');
+            const promptText = promptInput.value.trim();
+            const generateBtn = document.getElementById('generate-btn-vid');
+            const downloadBtn = document.getElementById('download-btn-vid');
+            const loadingText = document.getElementById('loading-video');
+            const resultVideo = document.getElementById('result-video');
+
+            if (!promptText) {
+                alert('プロンプトを入力してください。');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            resultVideo.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            loadingText.style.display = 'block';
+
+            const encodedPrompt = encodeURIComponent(promptText);
+            const randomSeed = Math.floor(Math.random() * 1000000);
+            
+            // Pollinations等の動画生成エンドポイント、または対応フォーマットに合わせたURL構築
+            // ※動画生成モデルやAPI仕様に合わせて最適化しています
+            const videoUrl = `https://gen.pollinations.ai/prompt/${encodedPrompt}?model=video&seed=${randomSeed}`;
+
+            // 動画のロード完了処理
+            resultVideo.onloadeddata = function() {
+                loadingText.style.display = 'none';
+                resultVideo.style.display = 'block';
+                downloadBtn.style.display = 'inline-block';
+                generateBtn.disabled = false;
+            };
+
+            // 動画のロード失敗時のフォールバック処理（環境によって動画モデルの挙動が異なる場合の対策）
+            resultVideo.onerror = function() {
+                loadingText.style.display = 'none';
+                alert('動画の生成に失敗したか、形式がサポートされていません。ネットワーク接続を確認して再度お試しください。');
+                generateBtn.disabled = false;
+            };
+
+            resultVideo.src = videoUrl;
+            resultVideo.load();
+        }
+
+        // ファイル（画像・動画共通）をローカルに保存する関数
+        async function downloadFile(type) {
+            const element = type === 'image' ? document.getElementById('result-image') : document.getElementById('result-video');
+            const downloadBtn = type === 'image' ? document.getElementById('download-btn-img') : document.getElementById('download-btn-vid');
+            
+            if (!element.src) return;
+
+            try {
+                downloadBtn.disabled = true;
+                downloadBtn.textContent = 'ダウンロード中...';
+
+                const response = await fetch(element.src);
+                const blob = await response.blob();
+
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `ai-${type}-${Date.now()}.${type === 'image' ? 'jpg' : 'mp4'}`;
+                document.body.appendChild(a);
+                a.click();
+                
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                alert('ファイルのダウンロードに失敗しました。');
+                console.error(error);
+            } finally {
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = type === 'image' ? '画像を保存する' : '動画を保存する';
+            }
+        }
+    </script>
+
+</body>
+</html>
